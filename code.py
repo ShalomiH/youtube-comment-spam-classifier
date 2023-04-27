@@ -89,6 +89,8 @@ print(metrics.classification_report(y_train, predicted))
 print(metrics.confusion_matrix(y_train, predicted))
 print("Model score: {}\n\n\n".format(model.score(x_test_holdout,y_test_holdout))) # Uses the test sets
 
+x_train = np.asarray(x_train)
+x_test = np.asarray(x_test)
 
 # 1: Multinomial Naive Bayes
 # Use a pipeline to tune the hyperparameters (alpha) using k-fold validation
