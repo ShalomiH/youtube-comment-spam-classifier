@@ -2,17 +2,20 @@ import pandas as pd
 import numpy as np
 import zipfile
 import os
+from matplotlib import pyplot as plt
 
 from sklearn import datasets
 from sklearn import metrics
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.dummy import DummyClassifier # To use as a baseline
 
 from sklearn.feature_extraction.text import CountVectorizer # To process the comments, i.e. process the "text" objects to classify
 from sklearn.model_selection import train_test_split # To split the dataset into train, validate, and test sets
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.decomposition import PCA
+from sklearn import model_selection
 
 # For pipeline hyperparameter tuning
 from sklearn.pipeline import make_pipeline
@@ -27,7 +30,7 @@ def loadData(vectorizor):
 	"""
 	Load the data and split it into training, test, and validation sets.
 
-	Parameters: the CountVectorizer to transform the comments (which are the text inputs)
+	Parameters: vectorizor - the CountVectorizer to transform the comments (which are the text inputs)
 
 	Returns: The formed input and output sets as np arrays:
 		x_train, x_test, x_test_holdout, x_val, y_train, y_test, y_test_holdout, y_val
@@ -64,6 +67,14 @@ def loadData(vectorizor):
 	x_train = np.asarray(x_train)
 	x_test = np.asarray(x_test)
 
+	# Plot the original data
+	pca = PCA(n_components=2)
+	proj = pca.fit_transform(np.asarray(x_total.todense()))
+	plt.scatter(proj[:, 0], proj[:, 1], c=np.asarray(y_total))
+	plt.colorbar() 
+	plt.tight_layout()
+	plt.savefig('data_spread.jpg')
+
 	return x_train, x_test, x_test_holdout, x_val, y_train, y_test, y_test_holdout, y_val
 
 
@@ -80,19 +91,23 @@ def modelPrediction(model, x_train, y_train, x_test, y_test, baselineAlgorithm=T
 		baselineAlgorithm: boolean indicating if the model is the baseline model
 
 	Returns: modelScore - the evaluation metric of this trained model
+			 crossValScore - the metric to visualize comparisons between models
 	"""
 	model.fit(x_train, y_train)
 	predicted = model.predict(x_train)
 	print(metrics.classification_report(y_train, predicted))
 	print(metrics.confusion_matrix(y_train, predicted))
 	modelScore = model.score(x_test,y_test)
+	kfold = model_selection.KFold(n_splits=10)
+	crossValScore = model_selection.cross_val_score(model, x_test, y_test, cv=kfold, scoring='accuracy')
+	print("Cross Validation score: {}\n".format(crossValScore))
 
 	if baselineAlgorithm:
 		print("Model score: {}\n\n\n".format(modelScore)) # Note: holdout test sets
 	else:
 		print("Tuned parameters: {}\nModel score: {}\n\n\n".format(model.best_params_, modelScore))
 
-	return modelScore
+	return modelScore, crossValScore
 
 
 def baselineModel(x_train, x_test_holdout, x_val, y_train, y_test_holdout, y_val):
@@ -102,7 +117,6 @@ def baselineModel(x_train, x_test_holdout, x_val, y_train, y_test_holdout, y_val
 		"stratified", "most_frequent", "prior", "uniform", or "constant"
 
 	Parameters:
-		model: the model to fit and score
 		x_train: np array of the training set input
 		x_test_holdout: np array of the test set input
 		x_val: np array of the validation set input
@@ -113,6 +127,7 @@ def baselineModel(x_train, x_test_holdout, x_val, y_train, y_test_holdout, y_val
 	Returns:
 		model - the trained model
 		modelScore - the evaluation metric of this trained model
+		crossValScore - the metric to visualize comparisons between models
 	"""
 	baselineStrategies = ["stratified", "most_frequent", "prior", "uniform", "constant"]
 	bestModel = "stratified"
@@ -143,8 +158,8 @@ def baselineModel(x_train, x_test_holdout, x_val, y_train, y_test_holdout, y_val
 		model = DummyClassifier(strategy=bestModel)
 
 	print(model)
-	modelScore = modelPrediction(model, x_train, y_train, x_test_holdout, y_test_holdout, True)
-	return model, modelScore
+	modelScore, crossValScore = modelPrediction(model, x_train, y_train, x_test_holdout, y_test_holdout, True)
+	return model, modelScore, crossValScore
 
 
 def multinomialNBModel(x_train, x_test, y_train, y_test):
@@ -152,7 +167,6 @@ def multinomialNBModel(x_train, x_test, y_train, y_test):
 	Train and evaluate the MultinomialNB model, and print the statistics.
 
 	Parameters:
-		model: the model to fit and score
 		x_train: np array of the training set input
 		x_test: np array of the test set input
 		y_train: np array of the training set output
@@ -161,15 +175,16 @@ def multinomialNBModel(x_train, x_test, y_train, y_test):
 	Returns:
 		model - the trained model
 		modelScore - the evaluation metric of this trained model
+		crossValScore - the metric to visualize comparisons between models
 	"""
 	# Use a pipeline to tune the hyperparameters (alpha) using k-fold validation
 	bb_pipe = make_pipeline( SimpleImputer(strategy="median"), MinMaxScaler(), MultinomialNB() )
 	param_grid = { "multinomialnb__alpha": [0.001, 0.1, 1, 10, 100] }
 	model = GridSearchCV(bb_pipe, param_grid, scoring='accuracy', cv=3, return_train_score=True, verbose=0, n_jobs=-1)
 	print(MultinomialNB())
-	modelScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
+	modelScore, crossValScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
 
-	return model, modelScore
+	return model, modelScore, crossValScore
 
 
 def kNNModel(x_train, x_test, y_train, y_test):
@@ -177,7 +192,6 @@ def kNNModel(x_train, x_test, y_train, y_test):
 	Train and evaluate the k-Nearest Neighbor model, and print the statistics.
 
 	Parameters:
-		model: the model to fit and score
 		x_train: np array of the training set input
 		x_test: np array of the test set input
 		y_train: np array of the training set output
@@ -186,6 +200,7 @@ def kNNModel(x_train, x_test, y_train, y_test):
 	Returns:
 		model - the trained model
 		modelScore - the evaluation metric of this trained model
+		crossValScore - the metric to visualize comparisons between models
 	"""
 	# Use a pipeline to tune the hyperparameters (n_neighbors and weights) using k-fold validation
 	bb_pipe = make_pipeline( SimpleImputer(strategy="median"), StandardScaler(), KNeighborsClassifier() )
@@ -193,9 +208,9 @@ def kNNModel(x_train, x_test, y_train, y_test):
 	    "kneighborsclassifier__weights": ['uniform', 'distance'] }
 	model = GridSearchCV(bb_pipe, param_grid, cv=3, verbose=0, n_jobs=-1)
 	print(KNeighborsClassifier())
-	modelScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
+	modelScore, crossValScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
 
-	return model, modelScore
+	return model, modelScore, crossValScore
 
 
 def SVMModel(x_train, x_test, y_train, y_test):
@@ -203,7 +218,6 @@ def SVMModel(x_train, x_test, y_train, y_test):
 	Train and evaluate the Support Vector Machine model, and print the statistics.
 
 	Parameters:
-		model: the model to fit and score
 		x_train: np array of the training set input
 		x_test: np array of the test set input
 		y_train: np array of the training set output
@@ -212,15 +226,83 @@ def SVMModel(x_train, x_test, y_train, y_test):
 	Returns:
 		model - the trained model
 		modelScore - the evaluation metric of this trained model
+		crossValScore - the metric to visualize comparisons between models
 	"""
 	# Use a pipeline to tune the hyperparameters (gamma and c) using k-fold validation
 	bb_pipe = make_pipeline( SimpleImputer(strategy="median"), StandardScaler(), SVC() )
 	param_grid = { "svc__gamma": [0.01, 0.1, 1.0, 10], "svc__C": [0.1, 1.0, 10, 100] }
 	model = GridSearchCV(bb_pipe, param_grid, cv=3, return_train_score=True, verbose=0, n_jobs=-1)
 	print(SVC())
-	modelScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
+	modelScore, crossValScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
 
-	return model, modelScore
+	return model, modelScore, crossValScore
+
+
+def DTCModel(x_train, x_test, y_train, y_test):
+	"""
+	Train and evaluate the Decision Tree Classifier model, and print the statistics.
+
+	Parameters:
+		x_train: np array of the training set input
+		x_test: np array of the test set input
+		y_train: np array of the training set output
+		y_test: np array of the test set output
+
+	Returns:
+		model - the trained model
+		modelScore - the evaluation metric of this trained model
+		crossValScore - the metric to visualize comparisons between models
+	"""
+	# Use a pipeline to tune the hyperparameters (criterion, max_depth, and min_samples_leaf) using k-fold validation
+	bb_pipe = DecisionTreeClassifier(random_state=123)
+	param_grid = { "criterion": ['gini', 'entropy'], "max_depth": [2,4,6,8,10,12], "min_samples_leaf": [1, 2, 3, 4, 5] }
+	model = GridSearchCV(bb_pipe, param_grid, cv=3, verbose=0, n_jobs=-1)
+	print(DecisionTreeClassifier())
+	modelScore, crossValScore = modelPrediction(model, x_train, y_train, x_test, y_test, False)
+
+	return model, modelScore, crossValScore
+
+
+def useBestModel(bestModel, results, vectorizor):
+	"""
+	Plot comparisons of models, and use the best model to make new predictions.
+
+	Parameters:
+		bestModel: the model to use for new predictions
+		results: list of the cross validation scores of all the models
+		vectorizor: the initialized CountVectorizer
+	"""
+	
+	# Compare the different model algorithms using box plots
+	names = ["Baseline", "MNB", "kNN", "SVM", "DTC"]
+
+	fig = plt.figure()
+	fig.suptitle('Algorithm Comparison')
+	ax = fig.add_subplot(111)
+	plt.boxplot(results)
+	ax.set_xticklabels(names)
+	plt.savefig('compare_models.jpg')
+
+	# Input new comments to predict as either spam or not.
+	# Note: surround the input by quotation marks, e.g.: "Example test comment!"
+	while True:
+		commentToPredict = input("Enter a comment (enclosed with quotation marks) to predict as either spam or not spam: ")
+
+		if (len(commentToPredict) > 2) and (commentToPredict[0] == commentToPredict[-1] == '"'):
+			formattedInput = vectorizor.transform([commentToPredict]).toarray()
+			spam = bestModel.predict(formattedInput)
+
+			if spam[0]:
+				print("Predicted as: spam")
+			else:
+				print("Predicted as: not spam")
+
+			# Ask the user to continue
+			continueLoop = input("Make another prediction? Enter \"y\", otherwise the program will exit: ")
+			if continueLoop != "\"y\"":
+				break
+		else:
+			print("\nError: please ensure the comment is enclosed with quotation marks, e.g.: \"Example test comment!\"")
 
 
 def main():
@@ -232,30 +314,39 @@ def main():
 	# Split the dataset into training, test, and validation sets
 	x_train, x_test, x_test_holdout, x_val, y_train, y_test, y_test_holdout, y_val = loadData(vectorizor)
 
+	# Maintain a dictionary where the keys are a model's score and the value is the model itself,
+	# and maintain a list of the cross validation scores for the models
+	modelsRanked = {}
+	results = []
+
 	# 0: the baseline: a dummy classifier tuned according to the possible strategies
-	baseline_model, baseline_score = baselineModel(x_train, x_test_holdout, x_val, y_train, y_test_holdout, y_val)
+	model, score, cvScore = baselineModel(x_train, x_test_holdout, x_val, y_train, y_test_holdout, y_val)
+	modelsRanked[score] = model
+	results.append(cvScore)
 
 	# 1: Multinomial Naive Bayes
-	multinomialNB_model, multinomialNB_score = multinomialNBModel(x_train, x_test, y_train, y_test)
-	
+	model, score, cvScore = multinomialNBModel(x_train, x_test, y_train, y_test)
+	modelsRanked[score] = model
+	results.append(cvScore)
+
 	# 2: k-Nearest Neighbor
-	kNN_model, kNN_score = kNNModel(x_train, x_test, y_train, y_test)
+	model, score, cvScore = kNNModel(x_train, x_test, y_train, y_test)
+	modelsRanked[score] = model
+	results.append(cvScore)
 
 	# 3: Support Vector Machine
-	SVM_model, SVM_score = SVMModel(x_train, x_test, y_train, y_test)
+	model, score, cvScore = SVMModel(x_train, x_test, y_train, y_test)
+	modelsRanked[score] = model
+	results.append(cvScore)
 
+	# 4: Decision Tree Classifier
+	model, score, cvScore = DTCModel(x_train, x_test, y_train, y_test)
+	modelsRanked[score] = model
+	results.append(cvScore)
 
-
-	# TODO: update to use the best model from the trained ones above
-	#		re-format output for clarity, loop for user to test additional comments
-	#		before this section: add visuals for the best model
-	#		catch unexpected input
-
-	# Input a new comment to predict as either spam or not.
-	# Note: surround the imput by quotation marks, e.g.: "Example test comment!"
-	commentToPredict = input("Enter a comment to predict as either spam or not: ")
-	formattedInput = vectorizor.transform([commentToPredict]).toarray()
-	print(multinomialNB_model.predict(formattedInput))
+	# Use the best-scored model
+	bestModel = modelsRanked[max(modelsRanked.keys())]
+	useBestModel(bestModel, results, vectorizor)
 
 
 if __name__ == "__main__":
