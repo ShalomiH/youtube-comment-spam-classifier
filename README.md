@@ -4,7 +4,7 @@ This program identifies whether a comment posted on a YouTube video is either sp
 
 In addition to a baseline algorithm, the program builds the following four models: a Multinomial Naive Bayes model, a k-Nearest Neighbor model, a Support Vector Machine model, and a Decision Tree Classifier model.
 
-There models are tuned according to the model score on the validation test (where we use hold-out validation for the baseline and k-fold validation for the four Machine Learning algorithms) – that is, we use the accuracy score. Additionally, the final model score on the performance of each model on the test set is also a calculation of the accuracy score. The model that has the highest performance is selected to predict whether the new, unseen comments are spam or not spam.
+These models are tuned according to the model score on the validation test (where we use hold-out validation for the baseline and k-fold validation for the four Machine Learning algorithms) – that is, we use the accuracy score. Additionally, the final model score on the performance of each model on the test set is also a calculation of the accuracy score. The model that has the highest performance is selected to predict whether the new, unseen comments are spam or not spam.
 
 
 
@@ -20,10 +20,10 @@ python3 code.py
 
 ## Results and Evaluation:
 The full YouTube-Spam-Collection-v1.zip dataset is visualized below:
-![image](https://github.com/ShalomiH/demo-repo-myfirsttest/assets/90998772/1c0e596e-b629-4d4b-a206-87b02d034ac8)
+![image](https://github.com/ShalomiH/youtube-comment-spam-classifier/assets/90998772/da1731ab-1288-416d-8d70-22a43e7d3ba8)
 
-The following is a comparison of the resulting models built is a sample run of the program:
-![image](https://github.com/ShalomiH/demo-repo-myfirsttest/assets/90998772/211cf4d8-03f8-4979-b833-81b694ae9f10)
+The following is a comparison of the resulting models built is a sample run of the program using their cross validation scores:
+![image](https://github.com/ShalomiH/youtube-comment-spam-classifier/assets/90998772/6e133964-9f54-4555-8c89-92f00bca69c4)
 
 In this example, the performance score of the model selected as the best (in this case, the Decision Tree Classifier model) is approximately 0.9522998.
 
