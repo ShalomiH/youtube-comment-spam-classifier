@@ -20,10 +20,10 @@ python3 code.py
 
 ## Results and Evaluation:
 The full YouTube-Spam-Collection-v1.zip dataset is visualized below:
-![image](https://github.com/ShalomiH/youtube-comment-spam-classifier/assets/90998772/da1731ab-1288-416d-8d70-22a43e7d3ba8)
+![image](https://github.com/ShalomiH/youtube-comment-spam-classifier/assets/90998772/e9248a3a-e51d-4c51-b925-79d3e7265648)
 
 The following is a comparison of the resulting models built is a sample run of the program using their cross validation scores:
-![image](https://github.com/ShalomiH/youtube-comment-spam-classifier/assets/90998772/6e133964-9f54-4555-8c89-92f00bca69c4)
+![image](https://github.com/ShalomiH/youtube-comment-spam-classifier/assets/90998772/6555bc39-e0c0-4590-80b9-789c3d616dd7)
 
 In this example, the performance score of the model selected as the best (in this case, the Decision Tree Classifier model) is approximately 0.9522998.
 
